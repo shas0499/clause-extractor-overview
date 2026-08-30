@@ -72,3 +72,48 @@ flowchart LR
     N -->|no| W["Write output .docx"]
     O --> W
 ```
+
+## How clause detection works
+
+Two ways a template can number its clauses, and both are supported — even mixed in the same document:
+
+1. **Typed numbers** — a paragraph whose text literally begins with a number followed by `.` or `)`, e.g. `1. Definitions`, `2) Term`, `3 - Payment`. The title is whatever follows the number on that line.
+2. **Word's native/automatic numbered lists** — a paragraph carrying Word's own list numbering at the outermost indent level. Word draws the "1." itself; it's never present as text, so the paragraph's own text (e.g. "Definitions") becomes the title.
+
+In both cases, sub-points — lettered, roman-numeral, or deeper native list levels — never start a new top-level clause. They stay nested inside whichever clause heading they follow.
+
+**A subtlety worth calling out:** Word calculates a native list's number dynamically from the items around it. Isolate one clause into its own file, and Word would normally renumber it back to "1." regardless of its original position. Clause Extractor fixes this by writing a small start-value override into that file's own numbering definition, so an extracted clause keeps displaying its true original number (e.g. "4. Confidentiality").
+
+## Approaches evaluated
+
+This app went through a couple of iterations before landing on its current design. Documenting them here because the reasoning is often as useful as the result:
+
+| Approach | Verdict | Notes |
+|---|---|---|
+| **Python + Tkinter + `python-docx`** | Prototype, replaced | Fast to build and worked well, but wasn't a genuine native Windows application — packaging it as an `.exe` requires bundling a Python runtime via PyInstaller, which felt like the wrong foundation for a real desktop tool. |
+| **C# + Open XML SDK (`DocumentFormat.OpenXml`)** | Considered, not used | Microsoft's official library for this exact job, and a very reasonable choice. Passed over here specifically to keep the project **dependency-free** — no NuGet package to restore, install, or version-pin, which also made it possible to build and test entirely offline. |
+| **C# + raw OOXML manipulation** (`System.IO.Compression` + `System.Xml.Linq`) | **Chosen** | A `.docx` is just a ZIP of XML — this uses only the .NET base class library. Each output file starts as a byte-for-byte copy of the template, so formatting fidelity is exact by construction rather than something to reconstruct. |
+| **Commercial libraries** (Aspose.Words, Spire.Doc, GemBox.Document) | Not evaluated in depth | Capable, well-documented libraries, but licensed/commercial — ruled out for a project intended to have zero external dependencies and no licensing overhead. Worth a look if you need heavier document manipulation (PDF export, complex merge fields, etc.) than this project requires. |
+
+## Tech stack
+
+- **.NET 8**, C#
+- **WinForms** for the desktop UI
+- **`System.IO.Compression` + `System.Xml.Linq`** for all `.docx`/OOXML manipulation — zero external NuGet packages
+- Tested against both typed-number and native-Word-numbering templates, including nested `a/b/i/ii/iii` sub-clause structures up to 3 levels deep
+
+## Known limitations
+
+- Only `.docx` templates are supported (not legacy `.doc` or PDF).
+- Clause detection assumes each top-level clause heading is either a typed number or a level-0 native list item — templates with unconventional numbering schemes may need review.
+- If two clauses sanitize to the same output file name (e.g. duplicate titles), the app appends `(1)`, `(2)`, etc. so no file is ever overwritten.
+
+## Access & licensing
+
+Source code is maintained privately. If you'd like to use the compiled app or discuss access to the source:
+
+- 📧 **Access / licensing enquiries**:shaswata.barua0499@outlook.com
+
+---
+
+<sub>This README documents the project's design and behavior for anyone evaluating or using Clause Extractor. It does not include implementation source code.</sub>
